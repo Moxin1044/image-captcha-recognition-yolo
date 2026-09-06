@@ -1,4 +1,4 @@
-# YOLO 验证码识别训练框架
+# Image CAPTCHA Recognition Model (YOLO)
 
 项目使用 `Verification_code/` 中的验证码图片。原始清单 `train.txt` 和 `val.txt` 每行格式为：
 
