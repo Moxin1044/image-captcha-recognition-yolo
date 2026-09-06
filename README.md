@@ -40,6 +40,15 @@ python predict.py Verification_code/ZZVKR.png --model runs/captcha/character_cla
 
 输出验证码和 5 个字符平均置信度。预测脚本假设字符等宽且字符数为 5，可通过 `--positions` 修改。
 
+## 示例图片
+
+`examples/` 中提供 10 张典型验证码图片，用于快速测试数据格式和预测入口。图片文件名本身就是对应标签：
+
+```text
+KYHXV.png  6YNE2.png  Y3FV8.png  CHMHX.png  CSZQX.png
+5ZXN3.png  C38HM.png  FWM48.png  ZNYXU.png  ZRZQ6.png
+```
+
 ## 注意事项
 
 - 当前数据集已提供训练/验证划分，准备脚本保持该划分，不随机泄漏样本。
