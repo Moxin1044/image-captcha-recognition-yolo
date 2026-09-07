@@ -4,9 +4,9 @@
 
 ## 当前模型
 
-当前训练好的字符分类模型已随仓库发布（Git LFS）：
+当前训练好的字符分类模型已发布到 [GitHub Release V1.0.0](https://github.com/Moxin1044/image-captcha-recognition-yolo/releases/tag/V1.0.0)：
 
-- [下载 `captcha-character-classifier-yolo11n-100e.pt`](models/captcha-character-classifier-yolo11n-100e.pt)
+- [直接下载 `captcha-character-classifier-yolo11n-100e.pt`](https://github.com/Moxin1044/image-captcha-recognition-yolo/releases/download/V1.0.0/captcha-character-classifier-yolo11n-100e.pt)
 - 模型：YOLO11n-cls（预训练权重微调）
 - 训练轮数：100（最佳轮次：94）
 - 输入尺寸：96×96
@@ -15,12 +15,6 @@
 - 验证集单字符 Top-5：94.59%
 
 这里的准确率是“单字符准确率”。整串验证码必须每个字符都正确，因此 4 位或 5 位整串准确率会更低。
-
-克隆仓库后，请先拉取 LFS 模型文件：
-
-```bash
-git lfs pull
-```
 
 ## 安装
 
