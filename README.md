@@ -1,12 +1,26 @@
-# Image CAPTCHA Recognition Model (YOLO)
+# Image CAPTCHA Recognition with YOLO
 
-项目使用 `Verification_code/` 中的验证码图片。原始清单 `train.txt` 和 `val.txt` 每行格式为：
+基于 Ultralytics YOLO 分类模型的固定宽度图片验证码识别项目。模型先将验证码按字符位置等宽切分，再识别每个字符，最后从左到右拼接结果。
 
-```text
-图片文件名 验证码文本
+## 当前模型
+
+当前训练好的字符分类模型已随仓库发布（Git LFS）：
+
+- [下载 `captcha-character-classifier-yolo11n-100e.pt`](models/captcha-character-classifier-yolo11n-100e.pt)
+- 模型：YOLO11n-cls（预训练权重微调）
+- 训练轮数：100（最佳轮次：94）
+- 输入尺寸：96×96
+- 字符类别：36 类（数字 `0-9`，大写字母 `A-Z`）
+- 验证集单字符 Top-1：83.23%
+- 验证集单字符 Top-5：94.59%
+
+这里的准确率是“单字符准确率”。整串验证码必须每个字符都正确，因此 4 位或 5 位整串准确率会更低。
+
+克隆仓库后，请先拉取 LFS 模型文件：
+
+```bash
+git lfs pull
 ```
-
-验证码文本作为文件名/清单标签，清单中的示例是 5 位。框架会按标签长度把每张图等宽切成字符图，再使用 YOLO 分类模型识别字符，最后按从左到右拼接结果；因此 4 位和 5 位都可以识别。模型学习的是单个字符类别，而不是把每一种验证码组合都当作独立类别。
 
 ## 安装
 
@@ -14,52 +28,98 @@
 python -m pip install -r requirements.txt
 ```
 
-## 准备数据
+## 数据准备
 
-在项目根目录执行：
+### 使用已有清单
+
+`Verification_code/train.txt` 和 `Verification_code/val.txt` 每行格式为：
+
+```text
+图片文件名 验证码文本
+```
+
+按清单准备字符裁剪数据：
 
 ```bash
 python prepare_dataset.py --source Verification_code --output data/characters --clear
 ```
 
-输出目录符合 Ultralytics 分类数据集格式：`data/characters/train/<字符>/` 和 `data/characters/val/<字符>/`。原始图片不会被修改。该步骤会生成约 5 倍于验证码图片数量的裁剪图，需要额外磁盘空间。
+### 直接使用图片文件名作为标签
 
-如果目录中没有清单，或希望直接利用以验证码文本命名的全部图片（包括 4 位验证码），使用：
+如果图片文件名就是验证码文本（例如 `000a.png` 或 `KYHXV.png`），可以自动发现标签并按固定哈希划分训练集/验证集。该方式会同时支持 4 位和 5 位验证码：
 
 ```bash
 python prepare_dataset.py --source Verification_code --output data/characters --discover --clear
 ```
 
+脚本不会修改原始图片，只会在 `data/characters/train/<字符>/` 和 `data/characters/val/<字符>/` 下生成字符裁剪图。
+
 ## 训练
+
+GPU：
 
 ```bash
 python train.py --data data/characters --epochs 100 --imgsz 96 --device 0
 ```
 
-没有 GPU 时使用 `--device cpu`。训练结果默认写入 `runs/captcha/character_classifier/`。
+CPU：
+
+```bash
+python train.py --data data/characters --epochs 100 --imgsz 96 --device cpu
+```
+
+训练结果默认写入：
+
+```text
+runs/captcha/character_classifier/weights/best.pt
+```
+
+训练脚本已关闭左右翻转增强，因为镜像会改变字符形状；同时使用较小的旋转、平移和擦除增强来提升泛化能力。
 
 ## 预测
 
+四位验证码：
+
 ```bash
-python predict.py Verification_code/ZZVKR.png --positions 5
-# 四位验证码：
-python predict.py Verification_code/000a.png --positions 4
+python predict.py Verification_code/000a.png --model path/to/best.pt --positions 4
 ```
 
-输出验证码和字符平均置信度。预测脚本假设字符等宽，字符数通过 `--positions` 指定（4 位就填 4）。
+五位验证码：
 
-## 示例图片
+```bash
+python predict.py Verification_code/KYHXV.png --model path/to/best.pt --positions 5
+```
 
-`examples/` 中提供 10 张典型验证码图片，用于快速测试数据格式和预测入口。图片文件名本身就是对应标签：
+如果省略 `--model`，脚本会自动查找 `runs/` 下最新的 `weights/best.pt`。输出格式为：
+
+```text
+预测文本    confidence=平均字符置信度
+```
+
+预测脚本假设字符等宽，并要求图片宽度能被 `--positions` 整除。如果字符旋转严重、相互重叠或不是等宽布局，应改用带边界框标注的 YOLO 检测方案。
+
+## 示例
+
+`examples/` 中包含 10 张示例验证码图片，可用于快速测试：
 
 ```text
 KYHXV.png  6YNE2.png  Y3FV8.png  CHMHX.png  CSZQX.png
 5ZXN3.png  C38HM.png  FWM48.png  ZNYXU.png  ZRZQ6.png
 ```
 
-## 注意事项
+## 目录结构
 
-- 当前数据集已提供训练/验证划分，准备脚本保持该划分，不随机泄漏样本。
-- 如果验证码字符有明显旋转、重叠或非等宽布局，应改为 YOLO 检测方案并为每个字符制作边界框；本数据集的固定尺寸/等宽结构更适合当前分类方案。
-- 训练前建议确认 PyTorch 已安装了与显卡 CUDA 匹配的版本。
-- 不要对字符分类使用左右翻转增强；例如 `b` 翻转后不再是原字符。训练脚本已关闭此增强，并将默认输入尺寸提高到 96。
+```text
+.
+├── Verification_code/        # 原始验证码图片和可选清单
+├── examples/                 # 示例图片
+├── data/characters/          # 生成的字符分类数据集
+├── prepare_dataset.py        # 数据准备和字符裁剪
+├── train.py                  # YOLO 分类训练
+├── predict.py                # 固定位数验证码预测
+└── requirements.txt
+```
+
+## 许可证
+
+代码和模型仅供学习与研究使用。使用验证码数据或自动识别服务时，请遵守数据来源网站的服务条款和适用法律法规。
