@@ -13,9 +13,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, default=Path("data/characters"))
     parser.add_argument("--model", default="yolo11n-cls.pt")
-    parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--imgsz", type=int, default=64)
-    parser.add_argument("--batch", type=int, default=256)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--imgsz", type=int, default=96,
+                        help="Classification input size; 96 preserves more character detail than 64")
+    parser.add_argument("--batch", type=int, default=128)
     parser.add_argument("--device", default="0", help="GPU index, cpu, or auto")
     parser.add_argument("--project", type=Path, default=Path("runs/captcha"))
     parser.add_argument("--name", default="character_classifier")
@@ -30,7 +31,11 @@ def main() -> None:
     model.train(
         data=str(args.data), epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
         device=device, project=str(args.project), name=args.name, workers=args.workers,
-        pretrained=True, patience=15, exist_ok=True,
+        pretrained=True, patience=20, exist_ok=True,
+        # Mirroring a glyph changes its identity and hurts CAPTCHA recognition.
+        fliplr=0.0, flipud=0.0,
+        degrees=3.0, translate=0.05, scale=0.2,
+        erasing=0.1,
     )
 
 

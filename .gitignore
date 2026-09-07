@@ -3,3 +3,5 @@ runs/
 Verification_code/
 __pycache__/
 .pytest_cache/
+*.pt
+weights/

@@ -9,7 +9,9 @@ from PIL import Image
 from ultralytics import YOLO
 
 
-def recognize(model: YOLO, image_path: Path, positions: int = 5, imgsz: int = 64) -> tuple[str, float]:
+def recognize(model: YOLO, image_path: Path, positions: int = 5, imgsz: int = 96) -> tuple[str, float]:
+    if positions < 1:
+        raise ValueError("positions must be at least 1")
     with Image.open(image_path) as source:
         image = source.convert("RGB")
         width, height = image.size
@@ -30,13 +32,23 @@ def recognize(model: YOLO, image_path: Path, positions: int = 5, imgsz: int = 64
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("image", type=Path)
-    parser.add_argument("--model", type=Path, default=Path("runs/captcha/character_classifier/weights/best.pt"))
-    parser.add_argument("--positions", type=int, default=5)
-    parser.add_argument("--imgsz", type=int, default=64)
+    parser.add_argument("--model", type=Path, default=None,
+                        help="Path to best.pt; when omitted, use the latest training result")
+    parser.add_argument("--positions", type=int, default=5,
+                        help="Number of characters in the image (use 4 for a four-character CAPTCHA)")
+    parser.add_argument("--imgsz", type=int, default=96)
     args = parser.parse_args()
-    if not args.model.exists():
-        raise SystemExit(f"Model not found: {args.model}")
-    text, confidence = recognize(YOLO(str(args.model)), args.image, args.positions, args.imgsz)
+    model_path = args.model
+    if model_path is None:
+        candidates = [
+            Path("runs/captcha/character_classifier/weights/best.pt"),
+            Path("runs/classify/runs/captcha/character_classifier/weights/best.pt"),
+        ]
+        candidates.extend(sorted(Path("runs").glob("**/weights/best.pt"), key=lambda p: p.stat().st_mtime, reverse=True))
+        model_path = next((path for path in candidates if path.exists()), None)
+    if model_path is None or not model_path.exists():
+        raise SystemExit("Model not found. Train first or pass --model path/to/best.pt")
+    text, confidence = recognize(YOLO(str(model_path)), args.image, args.positions, args.imgsz)
     print(f"{text}\tconfidence={confidence:.4f}")
 
 
